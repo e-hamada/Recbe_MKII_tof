@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 module top
-    #(  parameter   ARRAY_SIZE    = 40,
+    #(  parameter   ARRAY_SIZE    = 2,
         parameter   ERRSIG_ID_num = 11) 
 
 (
@@ -126,6 +126,8 @@ module top
     wire  [11:0]  vpvn;
     wire  [11:0]  vrefp;
     wire  [11:0]  vrefn;
+    wire          start;
+    wire  [7:0]   insert_err_count;
 
     loc_reg loc_reg (
         .i_clk              (clk_sys            ), // in : Clock
@@ -163,7 +165,9 @@ module top
         .i_vccbram          (vccbram          ), // in : FPGA VCCBRAM [V]
         .i_vpvn             (vpvn             ), // in : FPGA VPVN [V]
         .i_vrefp            (vrefp            ), // in : FPGA VREFP [V]
-        .i_vrefn            (vrefn            )  // in : FPGA VREFN [V]
+        .i_vrefn            (vrefn            ),  // in : FPGA VREFN [V]
+        .start              (start       ),
+        .insert_err_count   (insert_err_count[7:0])
     );
 
     
@@ -239,8 +243,8 @@ module top
     wire  [ARRAY_SIZE-1:0]  error;
     //wire  [ARRAY_SIZE-1:0]  flicker;
     
-    wire [ERRSIG_ID_num-1:0] error_A;
-    wire [ERRSIG_ID_num-1:0] error_B;
+    wire [ERRSIG_ID_num:0] error_A;
+    wire [ERRSIG_ID_num:0] error_B;
     
     
     soft_error_HUB 
@@ -254,6 +258,16 @@ module top
         .error_B(error_B[ERRSIG_ID_num-1:0])
     );
     
+    insert_err_wrapper dut (
+        .clk(clk133m),
+        .rst(sitcp_rst),
+        .error_A(error_A[ERRSIG_ID_num]),
+        .error_B(error_B[ERRSIG_ID_num]),
+        .start(start),
+        .insert_err_count(insert_err_count)
+    );
+    
+    
     
     //assign error_A = 0;
     //assign error_B = 0;
@@ -263,7 +277,7 @@ module top
 
     error_sig_tx_V2 
         #(.ARRAY_SIZE(ARRAY_SIZE),
-        .ERRSIG_ID_num(ERRSIG_ID_num)
+        .ERRSIG_ID_num(ERRSIG_ID_num+1)
     )    
     error_sig_tx(
         .i_clk(clk_sys),      // System clock

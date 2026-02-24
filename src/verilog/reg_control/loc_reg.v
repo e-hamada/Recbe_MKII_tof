@@ -56,7 +56,9 @@ module loc_reg #(
         input     [11:0]    i_vccbram,          // FPGA VCCBRAM [V]
         input     [11:0]    i_vpvn,             // FPGA VPVN [V]   
         input     [11:0]    i_vrefp,            // FPGA VREFP [V]  
-        input     [11:0]    i_vrefn             // FPGA VREFN [V]  
+        input     [11:0]    i_vrefn,             // FPGA VREFN [V]
+        output              start,
+        output [7:0]        insert_err_count  
     );
 
 //------------------------------------------------------------------------------
@@ -94,6 +96,8 @@ module loc_reg #(
     reg     [7:0]    x1D_Reg   ;  // Injection command and address [23:16]
     reg     [7:0]    x1E_Reg   ;  // Injection command and address [15:8]
     reg     [7:0]    x1F_Reg   ;  // Injection command and address [7:0]
+    reg     [7:0]    x2E_Reg   ;
+    reg     [7:0]    x2F_Reg   ;
 
     always@ (posedge i_clk or posedge i_rst) begin
         ///////////////////////////////////////////////////////
@@ -112,6 +116,8 @@ module loc_reg #(
             x1D_Reg[7:0]    <= 8'd0;
             x1E_Reg[7:0]    <= 8'd0;
             x1F_Reg[7:0]    <= 8'd0;
+            x2E_Reg[7:0]    <= 8'h0;
+            x2F_Reg[7:0]    <= 8'd0;
 
         ///////////////////////////////////////////////////////
         // Write Registers
@@ -130,6 +136,9 @@ module loc_reg #(
                 x1D_Reg[7:0]    <= (regCs[1] & (irAddr[3:0]==4'hD) ? irWd[7:0] : x1D_Reg[7:0]);
                 x1E_Reg[7:0]    <= (regCs[1] & (irAddr[3:0]==4'hE) ? irWd[7:0] : x1E_Reg[7:0]);
                 x1F_Reg[7:0]    <= (regCs[1] & (irAddr[3:0]==4'hF) ? irWd[7:0] : x1F_Reg[7:0]);
+                
+                x2E_Reg[7:0]    <= (regCs[2] & (irAddr[3:0]==4'hE) ? irWd[7:0] : x2E_Reg[7:0]); 
+                x2F_Reg[7:0]    <= (regCs[2] & (irAddr[3:0]==4'hF) ? irWd[7:0] : x2F_Reg[7:0]); 
             end else begin
                 x04_Reg <= 1'b0;
                 x10_Reg <= 1'b0;
@@ -204,8 +213,8 @@ module loc_reg #(
             4'hB:    rdDataC[7:0]     <= i_vrefp[7:0];           
             4'hC:    rdDataC[7:0]     <= {4'd0, i_vrefn[11:8]};
             4'hD:    rdDataC[7:0]     <= i_vrefn[7:0];
-            4'hE:    rdDataC[7:0]     <= 8'd0;
-            4'hF:    rdDataC[7:0]     <= 8'd0; 
+            4'hE:    rdDataC[7:0]     <= x2E_Reg[7:0];
+            4'hF:    rdDataC[7:0]     <= x2F_Reg[7:0]; 
         endcase        
         
         regRv[2:0]   <= (irRe    ? regCs[2:0] : 3'd0);
@@ -234,5 +243,7 @@ module loc_reg #(
     assign  o_seu_mon_rx[7:0] = x13_Reg[7:0];
     assign  o_sem_inj_strobe  = x1B_Reg;
     assign  o_sem_inj_cmd_addr[31:0] = {x1C_Reg[7:0], x1D_Reg[7:0], x1E_Reg[7:0], x1F_Reg[7:0]};
+    assign  start = x2E_Reg[0];
+    assign  insert_err_count = x2F_Reg[7:0];
 
 endmodule
