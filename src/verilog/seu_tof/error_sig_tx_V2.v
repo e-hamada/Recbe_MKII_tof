@@ -32,6 +32,7 @@ module error_sig_tx_V2(
     parameter ERRSIG_ID_num = 3; 
     parameter ARRAY_SIZE = 40;
     parameter X_ARRAY_interval = 4;
+    parameter PULSE_WIDTH = 100;
     //parameter FIRST_X_MAX = 8;
 
     input   i_clk;      // System clock
@@ -70,12 +71,17 @@ module error_sig_tx_V2(
     wire error_B_level3;
     assign error_A_level3 = (shift_error_A_level2[7:0] == 8'hFF) ? 1'b1 : 1'b0;
     assign error_B_level3 = (shift_error_B_level2[7:0] == 8'hFF) ? 1'b1 : 1'b0;
-    
+
+
+
+ //-------------------------------------------------------------------
+//Final LUT & UIB
+//-------------------------------------------------------------------    
     wire lut_out;
     
-    (* LOC = "SLICE_X0Y136" *)      //--> X162Y75 is the closest LUT to the IOB.
+    (* LOC = "SLICE_X0Y110" *)     
     LUT6 #(
-        .INIT (64'h0000_0000_0000_0008)     //--> lut_out = error_A_level3 & error_B_level3
+        .INIT (64'h0000_0000_0000_0008)     //--> lut_out = out_A & out_B
     ) LUT6_A (
         .O(lut_out),
         .I0(error_A_level3),
@@ -85,11 +91,42 @@ module error_sig_tx_V2(
         .I4(0),
         .I5(0) 
     );    
+  //-------------------------------------------------------------------
+//counter
+//-------------------------------------------------------------------  
+    reg lut_out_old;
+    reg [23:0] counter_A; 
+    reg out_A;
+  
+    wire error_detect = lut_out & ~lut_out_old;
+
+    always @(posedge i_clk) begin
+        if (i_rst) begin
+            lut_out_old  <= 1'b0;
+            counter_A <= 24'd0;
+            out_A     <= 1'b0;
+        end else begin
+            lut_out_old <= lut_out;
+
+            if (error_detect) begin
+                counter_A <= PULSE_WIDTH;
+                out_A     <= 1'b1;
+            end
+            else if (counter_A != 0) begin
+                counter_A <= counter_A - 1;
+                out_A     <= 1'b1;
+            end
+            else begin
+                out_A <= 1'b0;
+            end
+        end
+    end
+   
     
     
     (* IOB = "TRUE" *) reg reg_output_err_sig;
     always@(posedge i_clk)begin
-        reg_output_err_sig <= lut_out;          
+        reg_output_err_sig <= out_A;          
     end     
     
     assign output_err_sig = reg_output_err_sig;

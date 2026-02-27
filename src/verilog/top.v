@@ -263,7 +263,8 @@ module top
 
     error_sig_tx_V2 
         #(.ARRAY_SIZE(ARRAY_SIZE),
-        .ERRSIG_ID_num(ERRSIG_ID_num)
+        .ERRSIG_ID_num(ERRSIG_ID_num),
+        .PULSE_WIDTH(254000)    //7.87ns(127MHz) x 254000 = 2ms
     )    
     error_sig_tx(
         .i_clk(clk_sys),      // System clock
